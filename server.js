@@ -1,58 +1,61 @@
-const WebSocket = require('ws');
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
 const PORT = process.env.PORT || 10000;
 
-const wss = new WebSocket.Server({ port: PORT });
+app.use(cors());
+app.use(express.json());
+
 const rooms = {};
+const pendingRequests = {};
 
-console.log(`🚀 WebSocket na porta ${PORT}`);
-
-wss.on('connection', (ws) => {
-  console.log('Cliente conectado');
-  
-  let currentRoom = null;
-  let playerName = null;
-  
-  ws.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data);
-      
-      if (msg.type === 'join') {
-        currentRoom = msg.room;
-        playerName = msg.player;
-        
-        if (!rooms[currentRoom]) rooms[currentRoom] = [];
-        rooms[currentRoom].push(ws);
-        
-        console.log(`${playerName} -> ${currentRoom}`);
-        
-        ws.send(JSON.stringify({type: 'joined', room: currentRoom}));
-        broadcast(currentRoom, {type: 'player_joined', player: playerName}, ws);
+// Cleanup old data
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(rooms).forEach(room => {
+    Object.keys(rooms[room]).forEach(player => {
+      if (now - rooms[room][player].timestamp > 10000) {
+        delete rooms[room][player];
       }
-      else if (msg.type === 'update') {
-        if (currentRoom) {
-          msg.player = playerName;
-          broadcast(currentRoom, msg, ws);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    });
   });
+}, 5000);
+
+// POST /update - Envia e recebe dados
+app.post('/update', (req, res) => {
+  const { room, player, lastTalk, timestamp } = req.body;
   
-  ws.on('close', () => {
-    if (currentRoom && rooms[currentRoom]) {
-      rooms[currentRoom] = rooms[currentRoom].filter(c => c !== ws);
-      console.log(`${playerName} saiu`);
-    }
+  if (!room || !player) {
+    return res.status(400).json({ error: 'Missing room or player' });
+  }
+  
+  if (!rooms[room]) rooms[room] = {};
+  
+  // Salva dados do player
+  rooms[room][player] = {
+    player,
+    lastTalk: lastTalk || '',
+    timestamp: Date.now(),
+    talkTimestamp: timestamp || 0
+  };
+  
+  // Retorna dados de TODOS os players
+  res.json({
+    success: true,
+    team: rooms[room]
   });
 });
 
-function broadcast(room, msg, exclude) {
-  if (!rooms[room]) return;
-  const str = JSON.stringify(msg);
-  rooms[room].forEach(c => {
-    if (c !== exclude && c.readyState === WebSocket.OPEN) {
-      c.send(str);
-    }
-  });
-}
+// GET /health
+app.get('/health', (req, res) => {
+  res.send('OK');
+});
+
+app.get('/', (req, res) => {
+  res.send('Talk Sync Server - HTTP Mode');
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 HTTP Server na porta ${PORT}`);
+});
