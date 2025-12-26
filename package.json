@@ -9,30 +9,3 @@
     "ws": "^8.14.2"
   }
 }
-```
-
-4. **Commit changes**
-
----
-
-### PASSO 3: Deploy no Render
-
-1. Volte pro Render
-2. **Public Git Repository**
-3. Cole a URL do SEU repositório:
-```
-   https://github.com/SEU-USERNAME/tibia-websocket
-```
-   (substitua SEU-USERNAME pelo seu usuário do GitHub)
-
-4. **Continue**
-5. **Name:** `tibia-team-server`
-6. **Deploy Web Service**
-
----
-
-### AGUARDE O DEPLOY (~2-3 minutos)
-
-Quando terminar, você terá uma URL tipo:
-```
-tibia-team-server.onrender.com
